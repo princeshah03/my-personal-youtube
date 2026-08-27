@@ -61,17 +61,36 @@ const getVideoComments = asyncHandler(async (req, res) => {
             }
         },
         {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "comment",
+                as: "likes"
+            }
+        },
+        {
             $addFields: {
                 owner: {
                     $first: "$owner"
+                },
+                likeCount: {
+                    $size: "$likes"
+                },
+                isLiked: {
+                    $cond: {
+                        $if: { $in: [req.user?._id, "$likes.likedBy"] },
+                        then: true,
+                        else: false
+                    }
                 }
+            }
+        },
+        {
+            $project: {
+                likes: 0
             }
         }
     ])
-
-    if (!comments.length) {
-        throw new ApiError(404, "No comment found for this video")
-    }
 
     const totalComments = await Comment.countDocuments({ video: new mongoose.Types.ObjectId(videoId) });
 
